@@ -1,0 +1,34 @@
+% layout 'default';
+% title 'Pesquisar';
+      <div class="page-header">
+        <h3>Pesquisar</h3>
+      </div>
+
+% if ($mensagem) {
+      <div class="alert alert-danger"><%= $mensagem %></div>
+% }
+  
+      <div class="row">
+        <div class="col-md-9">
+          <form role="form" method="POST" action="/pesquisar">
+            <div class="form-group">
+              <label for="keyw">Palavras Chave</label>
+              <input type="text" class="form-control" name="keyw" id="keyw" placeholder="c#,desenvolvedor">
+              <p class="help-block">até três, separadas por vírgula</p>
+            </div>
+            <div class="form-group">
+              <img src="/captcha">
+            </div>
+            <div class="form-group">
+              <label for="code">Verificação</label>
+              <input type="text" class="form-control" name="code" id="code">
+            </div>
+            <button type="submit" class="btn btn-primary">Pesquisar</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="divAlert" class="alert alerta-mensagem" stylex="margin-top: 15px; display: none">
+        <button class="close">&times;</button>
+        <div></div>
+      </div>

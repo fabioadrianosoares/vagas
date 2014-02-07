@@ -1,0 +1,126 @@
+#!/usr/bin/env perl
+
+use Mojolicious::Lite;
+use Mojo::IOLoop;
+
+BEGIN {
+  use File::Basename 'dirname';
+  push @INC, dirname(__FILE__);
+}
+
+use ParseVagas;
+
+# Documentation browser under "/perldoc"
+plugin 'PODRenderer' if app->mode eq 'development';
+
+get '/' => sub {
+  my $self = shift;
+  
+  my $url = $self->url('/cgi/pesqvaga4.cfm');
+
+  $self->render_later;
+
+  Mojo::IOLoop->timer(0 => sub {
+    my $tx = $self->obter_ua->get($url);
+    $self->render('pesquisa', mensagem => '');
+  });
+
+};
+
+get '/captcha' => sub {
+  my $self = shift;
+
+  my $url = $self->url('/cgi/kaptcha.cfm');
+
+  $self->render_later;
+  
+  Mojo::IOLoop->timer(0 => sub {
+    my $tx = $self->obter_ua->get($url);
+    # TODO melhorar o tratamento aqui
+    $self->res->headers->content_length($tx->res->content->body_size);
+    $self->finish($tx->res->content->get_body_chunk(0));
+  });  
+};
+
+post '/pesquisar' => sub {
+  my $self = shift;
+  my $keyw = $self->req->param('keyw');
+  my $code = $self->req->param('code');
+
+  my $url = $self->url('/cgi/pesqvaga4.cfm');
+
+  $self->render_later;
+
+  Mojo::IOLoop->timer(0 => sub {
+    my $tx = $self->obter_ua->post($url => 
+      form => {pag => '1',
+         tv => '1010',
+         estado => 'SP',
+         codvaga => '',
+         ddmmaa1 => '',
+         ddmmaa2 => '',
+         andor => '1',
+         keyw => $keyw,
+         code => $code,
+         submit => 'ok'
+      }
+    );
+    
+    my $dados = ParseVagas::fazer($tx->res->body);
+    
+    if ($dados->{tv} eq '0') {
+      $self->render('pesquisa', 
+        mensagem => $dados->{erro} // 'Nao retornou registros');
+      return;
+    }
+
+    $self->render('resultado', dados => $dados, 
+      anterior => '',
+      proxima => $dados->{proxima} eq '1' ? '' : $dados->{proxima});  
+  }); 
+};
+
+post '/paginar' => sub {
+  my $self = shift;
+  my $keyw = $self->req->param('keyw');
+  my $tv = $self->req->param('tv');
+  my $pag = $self->req->param('pag');
+  
+  my $url = $self->url('/cgi/list4.cfm');
+
+  $self->render_later;
+
+  Mojo::IOLoop->timer(0 => sub {
+    my $tx = $self->obter_ua->post($url => 
+      form => {pag => $pag,
+        tv => $tv,
+        estado => 'SP',
+        codvaga => '',
+        ddmmaa1 => '',
+        ddmmaa2 => '',
+        andor => '1',
+        keyw => $keyw,
+        cargoperfil => '0'
+      }
+    );
+  
+    my $dados = ParseVagas::fazer($tx->res->body);
+  
+    if ($dados->{tv} eq '0') {
+      $self->render('pesquisa', 
+        mensagem => $dados->{erro} // 'Nao retornou registros');
+      return;
+    }
+      
+    $self->render('resultado', dados => $dados,
+      anterior => $pag ne '' && $pag ne '1' ? ($pag - 1) : '',
+      proxima => $dados->{proxima} eq $pag ? '' : $dados->{proxima});  
+  }); 
+};
+
+plugin Config => {file => 'vagas.conf'};
+plugin 'VagasHelpers';
+
+app->secrets('xxxxxxxxxx');
+app->start;
+
