@@ -26,7 +26,9 @@ sub register {
         $c->app->log->debug('   retornou PHPSESSID: ' . $session_id);
         my $cookie = Mojo::Cookie::Response->new(name => 'PHPSESSID', value => $session_id, Expires => -1);
         $c->res->cookies($cookie);
+        $c->stash({session_id => $session_id});
       }
+
     });   
     
   $app->helper(obter_ua => sub {
@@ -38,6 +40,7 @@ sub register {
       
       if ($session_id) {
         $c->app->log->debug('   utilizar PHPSESSID: ' . $session_id);
+        $c->stash({session_id => $session_id});
         $ua->cookie_jar->add(
           Mojo::Cookie::Response->new(
             name   => 'PHPSESSID',

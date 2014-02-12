@@ -2,6 +2,7 @@
 
 use Mojolicious::Lite;
 use Mojo::IOLoop;
+use Mango;
 
 BEGIN {
   use File::Basename 'dirname';
@@ -15,6 +16,13 @@ plugin 'PODRenderer' if app->mode eq 'development';
 
 get '/' => sub {
   my $self = shift;
+
+  $self->redirect_to('index.html');  
+
+};
+
+get '/inicio' => sub {
+  my $self = shift;
   
   my $url = $self->url('/cgi/pesqvaga4.cfm');
 
@@ -22,7 +30,7 @@ get '/' => sub {
 
   Mojo::IOLoop->timer(0 => sub {
     my $tx = $self->obter_ua->get($url);
-    $self->render('pesquisa', mensagem => '');
+    $self->render(json => { sessao => $self->stash('session_id') });
   });
 
 };
@@ -44,8 +52,7 @@ get '/captcha' => sub {
 
 post '/pesquisar' => sub {
   my $self = shift;
-  my $keyw = $self->req->param('keyw');
-  my $code = $self->req->param('code');
+  my $dados = $self->req->json;
 
   my $url = $self->url('/cgi/pesqvaga4.cfm');
 
@@ -60,63 +67,89 @@ post '/pesquisar' => sub {
          ddmmaa1 => '',
          ddmmaa2 => '',
          andor => '1',
-         keyw => $keyw,
-         code => $code,
+         keyw => $dados->{filtro},
+         code => $dados->{verificacao},
          submit => 'ok'
       }
     );
     
-    my $dados = ParseVagas::fazer($tx->res->body);
-    
-    if ($dados->{tv} eq '0') {
-      $self->render('pesquisa', 
-        mensagem => $dados->{erro} // 'Nao retornou registros');
-      return;
-    }
+    # salvar cada resposta no mongolab
+    my $vagas = ParseVagas::fazer($tx->res->body);
+    $self->render(json => $vagas);
+    Mojo::IOLoop->timer(0 => sub { salvar_cache($self, $vagas); });
 
-    $self->render('resultado', dados => $dados, 
-      anterior => '',
-      proxima => $dados->{proxima} eq '1' ? '' : $dados->{proxima});  
   }); 
 };
 
 post '/paginar' => sub {
   my $self = shift;
-  my $keyw = $self->req->param('keyw');
-  my $tv = $self->req->param('tv');
-  my $pag = $self->req->param('pag');
-  
+  my $dados = $self->req->json;
+
   my $url = $self->url('/cgi/list4.cfm');
 
   $self->render_later;
 
   Mojo::IOLoop->timer(0 => sub {
     my $tx = $self->obter_ua->post($url => 
-      form => {pag => $pag,
-        tv => $tv,
+      form => {pag => $dados->{pag},
+        tv => $dados->{tv},
         estado => 'SP',
         codvaga => '',
         ddmmaa1 => '',
         ddmmaa2 => '',
         andor => '1',
-        keyw => $keyw,
+        keyw => $dados->{filtro},
         cargoperfil => '0'
       }
     );
   
-    my $dados = ParseVagas::fazer($tx->res->body);
-  
-    if ($dados->{tv} eq '0') {
-      $self->render('pesquisa', 
-        mensagem => $dados->{erro} // 'Nao retornou registros');
-      return;
-    }
-      
-    $self->render('resultado', dados => $dados,
-      anterior => $pag ne '' && $pag ne '1' ? ($pag - 1) : '',
-      proxima => $dados->{proxima} eq $pag ? '' : $dados->{proxima});  
+    # salvar cada resposta no mongolab
+    my $vagas = ParseVagas::fazer($tx->res->body);
+    $self->render(json => $vagas);  
+    Mojo::IOLoop->timer(0 => sub { salvar_cache($self, $vagas); });
   }); 
 };
+
+get '/cache/:vagaId' => [ vagaId => qr/\d+/ ] => sub {
+  my $self = shift;
+
+  $self->render_later;
+
+  # recuperar resposta no mongolab
+  Mojo::IOLoop->timer(0 => sub {
+    my $mango = Mango->new($self->config->{servidor}->{mongodb});
+    my $doc = $mango->db('vagas')->collection('vagas')->
+      find_one({ codigo => $self->param('vagaId') });
+
+    if ($doc) {
+      delete $doc->{_id};
+      $self->render(json => {tv => 1,
+        op => [$doc]});   
+    } else {
+      $self->render(json => {tv => 0,
+        erro => 'Código não encontrado: ' . $self->param('vagaId'),
+        op => []});        
+    }
+  });
+
+
+};
+
+sub salvar_cache {
+  my $self = shift;
+  my $dados = shift;
+  my $mango = Mango->new($self->config->{servidor}->{mongodb});
+  my $vagas_collection = $mango->db('vagas')->collection('vagas');
+  my $vagas_ids_collection = $mango->db('vagas')->collection('vagas_ids');
+  for my $vaga (@{$dados->{op}}) {
+    # nao esta funcionando a versao nao bloqueante
+    my $doc = $vagas_ids_collection->find_one({ codigo => $vaga->{codigo} });
+    unless ($doc) {
+      $vagas_collection->insert($vaga);
+      $vagas_ids_collection->insert({ codigo => $vaga->{codigo} });
+    } 
+  }
+}
 
 plugin Config => {file => 'vagas.conf'};
 plugin 'VagasHelpers';

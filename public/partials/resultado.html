@@ -1,0 +1,37 @@
+      <div class="row"><div class="col-md-9">&nbsp;</div></div>    
+
+      <div class="alert alert-danger" ng-show="mensagemErro">{{mensagemErro}}</div>
+
+      <div class="row" ng-show="vaga.codigo == '' && mensagemErro == ''">
+        <div class="col-md-12">
+          <p>Carregando...</p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-9">
+          <a class="btn btn-default btn-xs disabled" ng-show="codigoAnterior == '' && codigoProximo != ''">
+            <span class="glyphicon glyphicon-chevron-left"></span></a>
+          <button type="button" class="btn btn-default btn-xs" ng-click="anterior()" 
+            ng-show="codigoAnterior != ''"><span class="glyphicon glyphicon-chevron-left"></span></button>
+          <button type="button" class="btn btn-default btn-xs" ng-click="proximo()" 
+            ng-show="codigoProximo != ''"><span class="glyphicon glyphicon-chevron-right"></span></button>
+        </div>
+      </div>
+
+      <div class="row" ng-show="codigoAnterior != '' || codigoProximo != ''"><div class="col-md-9">&nbsp;</div></div>    
+
+      <div class="panel panel-default" ng-show="vaga.codigo">
+        <div class="panel-heading">
+          <h3 class="panel-title">{{vaga.titulo}}</h3>
+        </div>
+        <div class="panel-body">
+          <strong>Data: </strong>{{vaga.data}}<br>
+          <strong>Codigo: </strong>{{vaga.codigo}}<br>
+          <strong>Cidade: </strong>{{vaga.cidade}}<br>
+          <strong>Empresa: </strong>{{vaga.empresa}}<br>
+          <strong>Email: </strong>{{vaga.email}}<br>
+          <hr />
+          <span ng-bind-html="vaga.descricao"></span>
+        </div>
+      </div>

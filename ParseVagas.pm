@@ -11,13 +11,14 @@ sub fazer {
   
   if ($html =~ /informe o codigo corretamente/) {
     $retorno->{tv} = '0';
-    $retorno->{erro} = 'Verificacao incorreta';
+    $retorno->{erro} = 'Verificação incorreta.';
   }
   
   if ($html =~ /name="tv" value="(\d+)"/) {
     $retorno->{tv} = $1;
   } else {
     $retorno->{tv} = '0';
+    $retorno->{erro} //= 'Nenhuma vaga encontrada.';
   }
 
   if ($html =~ /name="pag" value="(\d+)"/) {
