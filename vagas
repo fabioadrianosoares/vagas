@@ -24,7 +24,7 @@ get '/' => sub {
 get '/inicio' => sub {
   my $self = shift;
   
-  my $url = $self->url('/cgi/pesqvaga4.cfm');
+  my $url = $self->url('/apinfo/inc/list4.cfm');
 
   $self->render_later;
 
@@ -35,41 +35,24 @@ get '/inicio' => sub {
 
 };
 
-get '/captcha' => sub {
-  my $self = shift;
-
-  my $url = $self->url('/cgi/kaptcha.cfm');
-
-  $self->render_later;
-  
-  Mojo::IOLoop->timer(0 => sub {
-    my $tx = $self->obter_ua->get($url);
-    # TODO melhorar o tratamento aqui
-    $self->res->headers->content_length($tx->res->content->body_size);
-    $self->finish($tx->res->content->get_body_chunk(0));
-  });  
-};
-
 post '/pesquisar' => sub {
   my $self = shift;
   my $dados = $self->req->json;
 
-  my $url = $self->url('/cgi/pesqvaga4.cfm');
+  my $url = $self->url('/apinfo/inc/list4.cfm');
 
   $self->render_later;
 
   Mojo::IOLoop->timer(0 => sub {
     my $tx = $self->obter_ua->post($url => 
-      form => {pag => '1',
-         tv => '1010',
+      form => {suby => 'Pesquisar',
          estado => 'SP',
          codvaga => '',
          ddmmaa1 => '',
          ddmmaa2 => '',
          andor => '1',
-         keyw => $dados->{filtro},
-         code => $dados->{verificacao},
-         submit => 'ok'
+         onde => '2',
+         keyw => $dados->{filtro}
       }
     );
     
@@ -85,7 +68,7 @@ post '/paginar' => sub {
   my $self = shift;
   my $dados = $self->req->json;
 
-  my $url = $self->url('/cgi/list4.cfm');
+  my $url = $self->url('/apinfo/inc/list4.cfm');
 
   $self->render_later;
 
@@ -94,12 +77,11 @@ post '/paginar' => sub {
       form => {pag => $dados->{pag},
         tv => $dados->{tv},
         estado => 'SP',
-        codvaga => '',
         ddmmaa1 => '',
         ddmmaa2 => '',
         andor => '1',
-        keyw => $dados->{filtro},
-        cargoperfil => '0'
+        onde => '2',
+        keyw => $dados->{filtro}
       }
     );
   
@@ -112,6 +94,11 @@ post '/paginar' => sub {
 
 get '/cache/:vagaId' => [ vagaId => qr/\d+/ ] => sub {
   my $self = shift;
+
+  unless ($self->config->{servidor}->{mongodb}) {
+    $self->render(json => {tv => 0, erro => 'Cache MongoLab desligado. ', op => []});  
+    return;
+  }
 
   $self->render_later;
 
@@ -137,6 +124,7 @@ get '/cache/:vagaId' => [ vagaId => qr/\d+/ ] => sub {
 
 sub salvar_cache {
   my $self = shift;
+  return unless($self->config->{servidor}->{mongodb});
   my $dados = shift;
   my $mango = Mango->new($self->config->{servidor}->{mongodb});
   my $vagas_collection = $mango->db('vagas')->collection('vagas');

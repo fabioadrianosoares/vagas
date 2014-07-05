@@ -3,14 +3,8 @@
       </div>
 
       <div class="alert alert-danger" ng-show="mensagemErro">{{mensagemErro}}</div>
-
-      <div class="row" ng-hide="captcha">
-        <div class="col-md-12">
-          <p>Carregando...</p>
-        </div>
-      </div>
   
-      <div class="row" ng-show="captcha">
+      <div class="row">
         <div class="col-md-9">
           <form role="form" ng-submit="pesquisar()">
             <div class="form-group">
@@ -18,14 +12,6 @@
               <input type="text" class="form-control" name="filtro" ng-model="filtro" 
               	required placeholder="c#,desenvolvedor">
               <p class="help-block">até três, separadas por vírgula</p>
-            </div>
-            <div class="form-group">
-              <img ng-src="{{captcha}}">
-            </div>
-            <div class="form-group">
-              <label for="verificacao">Verificação</label>
-              <input type="text" class="form-control" name="verificacao" ng-model="verificacao" 
-              	required>
             </div>
             <button type="submit" class="btn btn-primary">Pesquisar</button>
           </form>

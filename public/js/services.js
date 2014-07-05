@@ -2,7 +2,7 @@
 
 angular.module('VagasApp.services', []).
   factory('Vagas', ['$http', function ($http) {
-    var servico = {contador: 0,
+    var servico = {pagina: 1,
       sessao: '',
       lista: [],
       filtro: '',
@@ -52,6 +52,7 @@ angular.module('VagasApp.services', []).
 
     servico.inicio = function () {
       servico._preHttp(); // limpar
+      servico.pagina = 1;
       $http.get('/inicio').success(function (data) {
         if (data.sessao == undefined) {
           servico.erro = 'Falha ao consultar servidor.';
@@ -87,12 +88,14 @@ angular.module('VagasApp.services', []).
 
     servico.mais = function () {
       servico._preHttp(); // limpar
-      $http.post('/paginar', {filtro: servico.filtro, tv: servico.tv, pag: (servico.lista.length / 12 + 1)})
+      $http.post('/paginar', {filtro: servico.filtro, tv: servico.tv, pag: ++servico.pagina})
       .success(function (data) {
         for (var i = 0; i < data.op.length; i++) {
           servico.lista.push(data.op[i]);
         };
-        servico.success();
+        if (data.op.length > 0) {
+          servico.success();
+        }
       }).error(function (data) {
         servico.erro = 'Falha ao consultar servidor.';
         servico.error();

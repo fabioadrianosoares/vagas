@@ -6,23 +6,19 @@ angular.module('VagasApp.controllers', ['ngSanitize']).
 
 function pesquisar($scope, $location, Vagas) {
   $scope.mensagemErro = '';
-  $scope.captcha = '';
   var init = function () {
-    $scope.captcha = '';
-    // é necessario atualizar o model de forma assincrona
-    Vagas.inicio().success(function () {
-      $scope.captcha = '/captcha?' + Vagas.sessao + '_' + (new Date()).getTime();
-    }).error(function () {
+    $scope.filtro = '';
+    Vagas.inicio().error(function () {
       $scope.mensagemErro = Vagas.erro;
     });
   };
 
   $scope.pesquisar = function () {
+    $scope.mensagemErro = '';
     Vagas.pesquisar($scope.filtro, $scope.verificacao).
     success(function () {
       if (Vagas.tv == 0) {
-        // chamar pagina inicial novamente e obter novo captcha
-        init();
+        $scope.mensagemErro = 'Nenhuma vaga encontrada';
       } else {
         $location.path('/resultado/' + Vagas.lista[0].codigo);
       }

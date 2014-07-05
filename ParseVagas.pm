@@ -9,11 +9,6 @@ sub fazer {
 
   my $retorno = {op => []};
   
-  if ($html =~ /informe o codigo corretamente/) {
-    $retorno->{tv} = '0';
-    $retorno->{erro} = 'Verificação incorreta.';
-  }
-  
   if ($html =~ /name="tv" value="(\d+)"/) {
     $retorno->{tv} = $1;
   } else {
@@ -33,34 +28,42 @@ sub fazer {
     $retorno->{keyw} = '';
   }
   
-  my @partes = split /<hr size="6" noshade>/, $html;
+  my @partes = split /<div class="box-vagas linha pd">/, $html;
 
   foreach my $parte (@partes) {
-    if ($parte =~ /Enviar curriculum para/) {
+    if ($parte =~ /class="info-data"/) {
       # esta com cara de oportunidade :)
-      my ($cidade, $estado, $data, $titulo, $descricao, $empresa, $email, $codigo);
+      my ($cidade, $estado, $data, $titulo, $descricao, $empresa, $codigo);
       
-      if ($parte =~ /#0000EE">([^<]+) - ([^<]+) - ([^<]+)</) {
-        ($cidade, $estado, $data) = ($1, $2, $3);
-      } else {
-        ($cidade, $estado, $data) = ('', '', '');
+      # limpar highlight
+      while ($parte =~ /<span class="highlight"><span style="background-color: #FFFF00"><span style="background-color: #FFFF00">[^<]+<\/span><\/span><\/span>/) {
+        $parte =~ s/<span class="highlight"><span style="background-color: #FFFF00"><span style="background-color: #FFFF00">([^<]+)<\/span><\/span><\/span>/$1/g;
+      }
+      while ($parte =~ /<span style="background-color: #FFFF00"><span style="background-color: #FFFF00">[^<]+<\/span><\/span>/) {
+        $parte =~ s/<span style="background-color: #FFFF00"><span style="background-color: #FFFF00">([^<]+)<\/span><\/span>/$1/g;
       }
 
-      if ($parte =~ /<B><FONT SIZE=\+1>([^<]+)</) {
+      ($cidade, $estado, $data) = ('', '', '');
+      if ($parte =~ /<div class="info-data">([^<]+)/s) {
+        my $auxi = trim $1;
+        if ($auxi =~ /(.+) - (.+) - (.+)/) {
+          ($cidade, $estado, $data) = ($1, $2, $3);
+        }
+      }
+
+      if ($parte =~ /<div class="cargo m-tb">(.+?)<\/div>/s) {
         $titulo = trim $1;
+        if ($titulo =~ /<span>(.+)<\/span>/) {
+          $titulo = trim $1;
+        }
       } else {
         $titulo = '';
       }
       
-      if ($parte =~ /\n <br>(.+?)<\/PRE>/ ) {
-        $descricao = $1;
+      if ($parte =~ /<p>(.+?)<\/p>/s ) {
+        $descricao = trim $1;
       } else {
         $descricao = '';
-        if ($parte =~ /<PRE>(.+?)<\/PRE>/s ) {
-          $descricao = $1;
-        } else {
-          $descricao = '';
-        }
       }
       $descricao =~ s/<br>/\n/isg;
       $descricao =~ s/</&lt;/g;
@@ -70,21 +73,13 @@ sub fazer {
       $descricao =~ s/^(<br \/>\s*)+//sg;
       $descricao =~ s/\s*(<br \/>\s*)+$//sg;
         
-      if ($parte =~ /Empresa \.+:\s+([^<]+)</) {
+      if ($parte =~ /<strong>Empresa \.+:<\/strong>\s+([^<]+)</) {
         $empresa = trim $1;
       } else {
         $empresa = '';
       }
-
-      if ($parte =~ /A HREF="([^"\?]+)/) {
-        my $auxi = url_unescape(html_unescape($1));
-        $auxi =~ s/&#046/\./g;
-        $email = ($auxi =~ /mailto:(.+)/) ? $1 : '';
-      } else {
-        $email = '';
-      }
       
-      if ($parte =~ /digo \.+:\s+(\d+)</) {
+      if ($parte =~ /digo \.+:<\/strong>\s+(\d+)/) {
         $codigo = $1;
       } else {
         $codigo = '';
@@ -96,7 +91,6 @@ sub fazer {
         titulo => $titulo,
         data => $data,
         empresa => $empresa,
-        email => $email,
         descricao => $descricao};
       
       push @{$retorno->{op}}, $op;
