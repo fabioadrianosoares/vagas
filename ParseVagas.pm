@@ -42,6 +42,7 @@ sub fazer {
       while ($parte =~ /<span style="background-color: #FFFF00"><span style="background-color: #FFFF00">[^<]+<\/span><\/span>/) {
         $parte =~ s/<span style="background-color: #FFFF00"><span style="background-color: #FFFF00">([^<]+)<\/span><\/span>/$1/g;
       }
+      $parte =~ s/<span class="highlight"><\/span>//g;
 
       ($cidade, $estado, $data) = ('', '', '');
       if ($parte =~ /<div class="info-data">([^<]+)/s) {
