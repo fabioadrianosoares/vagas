@@ -80,10 +80,29 @@ function resultado($scope, $location, $routeParams, Vagas) {
   $scope.codigo = $routeParams.vagaId;
 
   $scope.proximo = function () {
+    $scope.captcha = '';
     $location.path('/resultado/' + $scope.codigoProximo);
   };
 
   $scope.anterior = function () {
+    $scope.captcha = '';
     $location.path('/resultado/' + $scope.codigoAnterior);
   };  
+
+  $scope.descobrirEmail = function () {
+    $scope.captcha = '/captcha?codigo=' + $scope.vaga.codigo 
+      + '&chave=' + ($scope.vaga.chave == undefined ? '' : $scope.vaga.chave) 
+      + '&rnd=' + Vagas.sessao + '_' + (new Date()).getTime();
+  };
+
+  $scope.pesquisarEmail = function () {
+    $scope.captcha = '';
+    Vagas.pesquisarEmail($scope.vaga.codigo, $scope.verificacao)
+    .success(function () {
+      $scope.vaga.email = Vagas.email;
+    }).error(function () {
+      $scope.mensagemErro = Vagas.erro;
+    });    
+  };
+
 }

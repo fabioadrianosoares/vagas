@@ -119,7 +119,73 @@ get '/cache/:vagaId' => [ vagaId => qr/\d+/ ] => sub {
     }
   });
 
+};
 
+get '/captcha' => sub {
+  my $self = shift;
+
+  my $codigo = $self->param('codigo');
+  my $chave = $self->param('chave');
+
+  $self->render_later;
+
+  my $url = $self->url('/apinfo/inc/list44.cfm?codvaga=' . $codigo);
+
+  Mojo::IOLoop->timer(0 => sub {
+    unless ($chave) {
+      my $tx = $self->obter_ua->get($url);
+      my $vagas = ParseVagas::fazer($tx->res->body);
+      if ($vagas->{tv} == 1) {
+        $chave = $vagas->{op}->[0]->{chave};
+      } else {
+        $self->render_not_found();
+        return;
+      };
+    }
+
+    my $url = $self->url('/apinfo/inc/enviecv.cfm?codvaga=' . $codigo . '&' . $chave);
+
+    my $tx = $self->obter_ua->get($url);
+    
+    $url = $self->url('/apinfo/inc/kaptcha.cfm');
+    
+    Mojo::IOLoop->timer(0 => sub {
+      my $tx = $self->obter_ua->get($url);
+      # TODO melhorar o tratamento aqui
+      $self->res->headers->content_length($tx->res->content->body_size);
+      $self->finish($tx->res->content->get_body_chunk(0));
+    });    
+
+  });
+};
+
+post '/pesquisarEmail' => sub {
+  my $self = shift;
+  my $dados = $self->req->json;
+
+  $self->render_later;
+  
+  my $url = $self->url('/apinfo/inc/enviecv.cfm');
+
+  Mojo::IOLoop->timer(0 => sub {
+    my $tx = $self->obter_ua->post($url => 
+      form => {subx => 'Enviar',
+        cpf2 => '',
+        codvaga => $dados->{codigo},
+        code => $dados->{verificacao},
+        chave3 => ''
+      }
+    );
+
+    my $resposta = ParseVagas::email($tx->res->body);
+
+    $self->render(json => $resposta);
+    
+    if ($resposta->{email}) {
+      Mojo::IOLoop->timer(0 => sub { 
+        atualizar_cache($self, $dados->{codigo}, $resposta->{email}); });
+    }
+  });
 };
 
 sub salvar_cache {
@@ -137,6 +203,30 @@ sub salvar_cache {
       $vagas_ids_collection->insert({ codigo => $vaga->{codigo} });
     } 
   }
+}
+
+sub atualizar_cache {
+  my $self = shift;
+  return unless($self->config->{servidor}->{mongodb});
+  my $codigo = shift;
+  my $email = shift;
+  my $mango = Mango->new($self->config->{servidor}->{mongodb});
+  my $vagas_collection = $mango->db('vagas')->collection('vagas');
+  # nao esta funcionando a versao nao bloqueante
+  my $doc = $vagas_collection->find_one({ codigo => $codigo });
+  if ($doc) {
+    unless ($doc->{email}) {
+      # o mais feio update da minha vida
+      $vagas_collection->update($doc, { 'cidade' => $doc->{cidade},
+        'codigo' => $doc->{codigo},
+        'data' => $doc->{data},
+        'descricao' => $doc->{descricao},
+        'email' => $email,
+        'empresa' => $doc->{empresa},
+        'estado' => $doc->{estado},
+        'titulo' => $doc->{titulo}});
+    }
+  } 
 }
 
 plugin Config => {file => 'vagas.conf'};

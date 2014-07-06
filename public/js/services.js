@@ -123,5 +123,23 @@ angular.module('VagasApp.services', []).
       return servico; 
     };
 
+    servico.pesquisarEmail = function (codigo, verificacao) {
+      servico._preHttp(); // limpar
+      $http.post('/pesquisarEmail', {codigo: codigo, verificacao: verificacao})
+      .success(function (data) {
+        if (data.erro == '') {
+          servico.email = data.email;
+          servico.success();
+        } else {
+          servico.erro = data.erro;
+          servico.error();
+        }
+      }).error(function (data) {
+        servico.erro = 'Falha ao consultar servidor.';
+        servico.error();
+      });      
+      return servico; 
+    };
+
     return servico;
   }]);

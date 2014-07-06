@@ -30,7 +30,17 @@
           <strong>Codigo: </strong>{{vaga.codigo}}<br>
           <strong>Cidade: </strong>{{vaga.cidade}}<br>
           <strong>Empresa: </strong>{{vaga.empresa}}<br>
-          <!-- strong>Email: </strong>{{vaga.email}}<br -->
+          <strong>Email: </strong>{{vaga.email}}<button type="button" class="btn btn-default btn-xs" 
+            ng-click="descobrirEmail()" ng-hide="vaga.email">
+            <span class="glyphicon glyphicon-envelope"></span></button><br>
+          <form class="form-inline caixa" role="form" ng-submit="pesquisarEmail()" ng-show="captcha">
+            <div class="form-group">
+              <img ng-src="{{captcha}}">
+              <input type="text" class="form-control" name="verificacao" ng-model="verificacao" required>
+              <button type="submit" class="btn btn-primary">Pesquisar</button>
+            </div>
+            
+          </form>
           <hr />
           <span ng-bind-html="vaga.descricao"></span>
         </div>

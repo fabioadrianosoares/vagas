@@ -33,7 +33,7 @@ sub fazer {
   foreach my $parte (@partes) {
     if ($parte =~ /class="info-data"/) {
       # esta com cara de oportunidade :)
-      my ($cidade, $estado, $data, $titulo, $descricao, $empresa, $codigo);
+      my ($cidade, $estado, $data, $titulo, $descricao, $empresa, $codigo, $chave);
       
       # limpar highlight
       while ($parte =~ /<span class="highlight"><span style="background-color: #FFFF00"><span style="background-color: #FFFF00">[^<]+<\/span><\/span><\/span>/) {
@@ -80,18 +80,21 @@ sub fazer {
         $empresa = '';
       }
       
-      if ($parte =~ /digo \.+:<\/strong>\s+(\d+)/) {
+      if ($parte =~ /enviecv.cfm\?codvaga=(\d+)&([^"]+)/) {
         $codigo = $1;
+        $chave = $2;
       } else {
         $codigo = '';
+        $chave = '';
       }
-      
+
       my $op = {codigo => $codigo,
         cidade => $cidade,
         estado => $estado,
         titulo => $titulo,
         data => $data,
         empresa => $empresa,
+        chave => $chave,
         descricao => $descricao};
       
       push @{$retorno->{op}}, $op;
@@ -101,4 +104,20 @@ sub fazer {
   return $retorno;
 }
 
+sub email {
+  my $html = shift;
+  my ($erro, $email) = ('', '');
+
+  if ($html =~ /Email : <strong>([^<]+)/i) {
+    $email = trim $1;
+  } else {
+    if ($html =~ /Caracteres inv/i){
+      $erro = 'Verificação incorreta.';
+    } else {
+      $erro = 'Falha ao buscar e-mail.';
+    }
+  }
+
+  return {erro => $erro, email => $email};
+}
 1;
