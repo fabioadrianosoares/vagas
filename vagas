@@ -95,27 +95,36 @@ post '/paginar' => sub {
 get '/cache/:vagaId' => [ vagaId => qr/\d+/ ] => sub {
   my $self = shift;
 
-  unless ($self->config->{servidor}->{mongodb}) {
-    $self->render(json => {tv => 0, erro => 'Cache MongoLab desligado. ', op => []});  
-    return;
-  }
-
   $self->render_later;
 
-  # recuperar resposta no mongolab
   Mojo::IOLoop->timer(0 => sub {
-    my $mango = Mango->new($self->config->{servidor}->{mongodb});
-    my $doc = $mango->db('vagas')->collection('vagas')->
-      find_one({ codigo => $self->param('vagaId') });
+    # recuperar resposta no mongolab
+    if ($self->config->{servidor}->{mongodb}) {
+      my $mango = Mango->new($self->config->{servidor}->{mongodb});
+      my $doc = $mango->db('vagas')->collection('vagas')->
+        find_one({ codigo => $self->param('vagaId') });
 
-    if ($doc) {
-      delete $doc->{_id};
-      $self->render(json => {tv => 1,
-        op => [$doc]});   
+      if ($doc) {
+        delete $doc->{_id};
+        $self->render(json => {tv => 1,
+          op => [$doc]});
+        return;
+      }
+    }
+
+    # buscar direto pelo id
+    my $url = $self->url('/apinfo/inc/list44.cfm?codvaga=' . $self->param('vagaId'));
+
+    my $tx = $self->obter_ua->get($url);
+    my $vagas = ParseVagas::fazer($tx->res->body);
+    if ($vagas->{tv} == 1) {
+      delete $vagas->{op}->[0]->{chave};
+      $self->render(json => $vagas);  
+      Mojo::IOLoop->timer(0 => sub { salvar_cache($self, $vagas); });
     } else {
       $self->render(json => {tv => 0,
         erro => 'Código não encontrado: ' . $self->param('vagaId'),
-        op => []});        
+        op => []});
     }
   });
 
@@ -199,6 +208,7 @@ sub salvar_cache {
     # nao esta funcionando a versao nao bloqueante
     my $doc = $vagas_ids_collection->find_one({ codigo => $vaga->{codigo} });
     unless ($doc) {
+      delete $vaga->{chave};
       $vagas_collection->insert($vaga);
       $vagas_ids_collection->insert({ codigo => $vaga->{codigo} });
     } 
